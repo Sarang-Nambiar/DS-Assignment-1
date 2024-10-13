@@ -1,23 +1,29 @@
 package main
 
 import (
-	"fmt"
-	"sync"
-	"custom-bully-algorithm/server"
 	"custom-bully-algorithm/client"
+	"custom-bully-algorithm/server"
+	"fmt"
 )
 
 
 func main() {
-	var wg sync.WaitGroup
 	messages := make(chan string)
-	server := server.Server{
-		drop: false,
+	clientChannels := make([] chan string, 10)
+	
+	for i := range clientChannels {
+		clientChannels[i] = make(chan string)
 	}
-	go server.receiveMessage(messages)
+	
+	server := server.Server{false, clientChannels}
+
+	go server.ReceiveMessage(messages)
 	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		client := client.Client{uint8(i)}
-		go client.sendMessage(messages)
+		client := client.Client{uint8(i), clientChannels[i]}
+		go client.SendMessage(messages)
+		go client.ReceiveMessage()
 	}
+
+	var input string
+	fmt.Scanln(&input)
 }

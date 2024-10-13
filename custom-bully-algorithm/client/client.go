@@ -6,17 +6,21 @@ import (
 )
 
 type Client struct{
-	id uint8 // unsigned integer of 8 bits
+	Id uint8 // unsigned integer of 8 bits
+	SubChannel chan string
 }
 
 // send message function to server
-func (c *Client) sendMessage(messages chan string) {
+func (c *Client) SendMessage(messages chan string) {
 	for{
-		time.Sleep(2 * time.Second) // every two seconds, a message is sent
-		fmt.Println("Sending message to server from client")
+		messages <- fmt.Sprintf("Hellow from client %d", c.Id) 
+		time.Sleep(10 * time.Second) // every two seconds, a message is sent
 	}
 }
 
-func (c *Client) receiveMessage(channel chan string){
-	fmt.Println("Receiving message from server")
+func (c *Client) ReceiveMessage(){
+	for{
+		msg := <- c.SubChannel
+		fmt.Println(fmt.Sprintf("Message from Server: %s", msg))
+	}
 }
