@@ -14,13 +14,13 @@ type Client struct{
 func (c *Client) SendMessage(messages chan string) {
 	for{
 		messages <- fmt.Sprintf("Hellow from client %d", c.Id) 
-		time.Sleep(10 * time.Second) // every two seconds, a message is sent
+		time.Sleep(5 * time.Second) // every message is sent after every client Id seconds
 	}
 }
 
 func (c *Client) ReceiveMessage(){
 	for{
 		msg := <- c.SubChannel
-		fmt.Println(fmt.Sprintf("Message from Server: %s", msg))
+		fmt.Println(fmt.Sprintf("Message from Server at client %d: %s", c.Id, msg))
 	}
 }
