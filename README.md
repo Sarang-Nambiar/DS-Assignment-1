@@ -1,7 +1,5 @@
 # DS-Assignment-1
 
----
-
 ## Part-1: 
 (30 points) Consider some client-server architecture as follows. Several clients are registered
 to the server. Periodically, each client sends message to the server. Upon receiving a
@@ -17,7 +15,6 @@ clients to know the order in which the messages should be read. (10 points)
 and print any such detected causality violation. (10 points)
 For all the points above, you should try your solution with at least 10 clients.
 
----
 ## Part-2
 (50 points) Use Ring Protocol to implement a working version of replica synchronization. You
 may assume that each replica maintains some data structure (that may diverge for arbitrary

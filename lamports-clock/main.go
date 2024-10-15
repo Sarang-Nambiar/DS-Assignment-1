@@ -8,7 +8,7 @@ import (
 )
 
 const(
-	numNodes = 4
+	numNodes = 3
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 		serverChannels[i] = make(chan client.Message)
 	}
 
-	server := server.Server{0, clientChannels, serverChannels, sync.Mutex{}}
+	server := server.Server{0, clientChannels, serverChannels, sync.Mutex{}} // every server starts off with a logical clock of 0
 
 	go server.ReceiveMessage()
 	for i := range clientChannels {

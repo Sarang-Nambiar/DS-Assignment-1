@@ -2,14 +2,15 @@ package server
 
 import (
 	"fmt"
-	"lamports-clock/client"
+	"vector-clock/client"
 	"math/rand"
 	"sync"
 	"time"
 )
 
+
 type Server struct {
-	Clock int
+	Clock []int
 	SendChannels []chan client.Message
 	ReceiveChannels []chan client.Message
 	Lock sync.Mutex
@@ -27,12 +28,17 @@ func (s *Server) handleClientChannels(clientId int){
 	for{
 		msg := <- s.ReceiveChannels[clientId]
 		
+		if client.CausalityDetection(msg.Clock, s.Clock) {
+			fmt.Println(fmt.Sprintf("[SERVER-VC%v] Potential Causality Violation detected for message: '%s'. Message Clock: %v", s.Clock, msg.Message, msg.Clock))
+		}
+
 		s.Lock.Lock()
-		s.Clock = max(s.Clock, msg.Clock) + 1
-		fmt.Println(fmt.Sprintf("[SERVER-LC%d] Message receieved: '%s'", s.Clock, msg.Message))
+		s.Clock = client.VectorMAX(s.Clock, msg.Clock) // updating the logical clock by finding the maximum between the two clock values
+		s.Clock[len(s.Clock) - 1] += 1
+		fmt.Println(fmt.Sprintf("[SERVER-VC%v] Message receieved: '%s'", s.Clock, msg.Message))
 		s.Lock.Unlock()
 
-		if msg != (client.Message{}) {
+		if !msg.IsEmpty() {
 			// send to all clients which don't have id as clientId
 			s.sendMessage(msg)
 		}
@@ -44,10 +50,11 @@ func (s *Server) sendMessage(message client.Message){
 	
 	if !s.coinFlip(){
 		s.Lock.Lock()
-		s.Clock += 1
+		s.Clock[len(s.Clock) - 1] += 1
 		currentClock := s.Clock
 		s.Lock.Unlock()
-		fmt.Println(fmt.Sprintf("[SERVER-LC%d] Forwarding the message of client %d is dropped", currentClock, message.ClientId))
+
+		fmt.Println(fmt.Sprintf("[SERVER-VC%v] Forwarding the message of client %d is dropped", currentClock, message.ClientId))
 		return
 	}
 
@@ -55,12 +62,12 @@ func (s *Server) sendMessage(message client.Message){
 		if i != message.ClientId{
 
 			s.Lock.Lock()
-			s.Clock += 1
+			s.Clock[len(s.Clock) - 1] += 1
 			currentClock := s.Clock
 			s.Lock.Unlock()
 			
 			channel <- client.Message{currentClock, message.Message, message.ClientId}
-			fmt.Println(fmt.Sprintf("[SERVER-LC%d] Message forwarded to client %d: '%s'", s.Clock, i, message.Message))
+			fmt.Println(fmt.Sprintf("[SERVER-VC%v] Message forwarded to client %d: '%s'", s.Clock, i, message.Message))
 		}
 	}
 }
