@@ -61,7 +61,11 @@ func StartNode(node *Node) {
 
 // Check if you have to update the ring address value of the new coordinator nodee
 func StartCoordinator(node *Node) {
-	rpc.Register(&CoordinatorNode{node})
+	node.IsCoordinator = true
+	node.CoordinatorId = node.Id
+
+	cn := CoordinatorNode{node}
+	rpc.Register(&cn)
 	listener, err := net.Listen("tcp", ":8000")
 	if err != nil {
 		fmt.Println(fmt.Sprintf("[COORDINATOR-%d] Error starting coordinator:", node.Id), err)
@@ -70,6 +74,9 @@ func StartCoordinator(node *Node) {
 	defer listener.Close()
 
 	fmt.Println(fmt.Sprintf("[COORDINATOR-%d] Coordinator is running on %s", node.Id, node.ClientList[node.Id]))
+
+	// Begin Synchronization
+	// go cn.SynchronizeReplica()
 
 	for {
 		conn, err := listener.Accept()
@@ -111,40 +118,6 @@ func RegisterWithCoordinator(node *Node) {
 	}
 
 	fmt.Printf("[NODE-%d] Node has been registered with the coordinator.\n", node.Id)
-}
-
-func (n *Node) SynchronizeReplica() {
-	for {
-		fmt.Printf("[COORDINATOR-%d] Replica synchronization has begun, Replica: '%v'\n", n.CoordinatorId, n.LocalReplica)
-		for i, v := range n.ClientList {
-			if i != n.CoordinatorId {
-				client, err := rpc.Dial("tcp", v)
-				if err != nil {
-					fmt.Printf("[COORDINATOR-%d] Error occurred while creating a connection between coordinator and node-%d: %s\n", n.CoordinatorId, i, err)
-					continue
-				}
-
-				var reply Message
-				var msg Message = Message{
-					Type:    SYNC,
-					NodeId:  n.CoordinatorId,
-					Payload: n.LocalReplica,
-				}
-				err = client.Call("ClientNode.InvokeSynchronization", msg, &reply)
-
-				if err != nil {
-					fmt.Printf("[COORDINATOR-%d] Error occurred while receiving a response from the client node-%d: %s\n", n.CoordinatorId, n.Id, err)
-					continue
-				}
-
-				if reply.Type == ACK {
-					fmt.Printf("[COORDINATOR-%d] Replica successfully synchronized with client node %d\n", n.CoordinatorId, reply.NodeId)
-				}
-			}
-		}
-
-		time.Sleep(5 * time.Second) // Call synchronization every 5 seconds
-	}
 }
 
 // Utility functions

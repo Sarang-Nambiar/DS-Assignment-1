@@ -21,9 +21,7 @@ func main() {
 
 	// If there are no nodes running in the network, assign this node to be the coordinator by default
 	if len(nodesList) == 0 {
-		n.IsCoordinator = true
 		n.Id = 0
-		n.CoordinatorId = n.Id
 		n.LocalReplica = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 		n.ClientList[n.Id] = node.LOCALHOST + "8000"
 		n.Ring = append(n.Ring, n.Id)
@@ -48,8 +46,6 @@ func main() {
 
 	if !n.IsCoordinator {
 		go node.StartNode(&n)
-	} else {
-		go n.SynchronizeReplica()
 	}
 
 	// Handle shutting down case
