@@ -9,34 +9,34 @@ import (
 	"time"
 )
 
-// Order of business
-// 1. Whenever a node joins, we run the ring protocol to first do discovery, and then set the values of the client list and the ring structure in the next round of traversal
-// 2. Implement a timeout feature if the synchronization doesn't happen in the next 5 seconds from the last updated time
-
 type Node struct {
 	Id            int
 	LocalReplica  []int
 	ClientList    map[int]string // Map over array because we can easily add or remove a node without indexing error
 	Ring          []int
-	IsCoordinator bool
 	CoordinatorId int
 	Lock          sync.Mutex
 }
 
 const (
 	ACK      = "ACK" // Acknowledgement
-	DISCOVER = "DISCOVER" // Discovery phase
-	ANNOUNCE = "ANNOUNCE" // Announcement phase
+	DISCOVER = "DISCOVER" // Discovery phase during election
+	ANNOUNCE = "ANNOUNCE" // Announcement phase during election
 	SYNC     = "SYNC" // Synchronizing replica
-	UPDATE = "UPDATE" // Updating the ring structure(FOR NEWLY JOINED NODES ONLY)
+	NDISCOVER = "NDISCOVER" // New node discovery
 	LOCALHOST = "127.0.0.1:"
 )
 
 func StartNode(node *Node) {
-	cn := ClientNode{node, time.Now()}
+	cn := ClientNode{
+		Node: node, 
+		LastUpdated: time.Now(),
+	}
+
 	rpc.Register(&cn)
 
 	listener, err := net.Listen("tcp", node.ClientList[node.Id])
+	cn.Listener = listener
 	if err != nil {
 		fmt.Printf("[NODE-%d] could not start listening: %s\n", node.Id, err)
 		os.Exit(1)
@@ -59,30 +59,32 @@ func StartNode(node *Node) {
 	}
 }
 
-// Check if you have to update the ring address value of the new coordinator nodee
+// Function to start the coordinator node when there are no nodes in the network.
 func StartCoordinator(node *Node) {
-	node.IsCoordinator = true
+	node.Lock.Lock()
 	node.CoordinatorId = node.Id
+	node.ClientList[node.Id] = LOCALHOST + "8000" // Changing the address to the coordinator's address
+	node.Lock.Unlock()
 
 	cn := CoordinatorNode{node}
 	rpc.Register(&cn)
-	listener, err := net.Listen("tcp", ":8000")
+	listener, err := net.Listen("tcp", node.ClientList[node.Id])
 	if err != nil {
 		fmt.Println(fmt.Sprintf("[COORDINATOR-%d] Error starting coordinator:", node.Id), err)
 		os.Exit(1)
 	}
 	defer listener.Close()
 
-	fmt.Println(fmt.Sprintf("[COORDINATOR-%d] Coordinator is running on %s", node.Id, node.ClientList[node.Id]))
+	fmt.Printf("[COORDINATOR-%d] Coordinator is running on %s\n", node.Id, node.ClientList[node.Id])
 
 	// Begin Synchronization
-	// go cn.SynchronizeReplica()
+	go cn.SynchronizeReplica()
 
 	for {
 		conn, err := listener.Accept()
 
 		if err != nil {
-			fmt.Println(fmt.Sprintf("[COORDINATOR-%d] Error listening to accepting incoming connections", node.Id))
+			fmt.Printf("[COORDINATOR-%d] Error listening to accepting incoming connections\n", node.Id)
 		}
 
 		go rpc.ServeConn(conn)
@@ -91,7 +93,7 @@ func StartCoordinator(node *Node) {
 
 // Double check if you need to initiate the ring join process when a node joins the network
 func RegisterWithCoordinator(node *Node) {
-	client, err := rpc.Dial("tcp", ":8000")
+	client, err := rpc.Dial("tcp", node.ClientList[node.CoordinatorId])
 
 	if err != nil {
 		fmt.Printf("[NODE-%d] Error connecting to coordinator. Please check if there is a running coordinator: %s\n", node.Id, err)
@@ -100,7 +102,7 @@ func RegisterWithCoordinator(node *Node) {
 	defer client.Close()
 
 	var request Message = Message{
-		Type:       DISCOVER,
+		Type:       NDISCOVER,
 		NodeId:     node.Id,
 		ClientList: node.ClientList,
 		Ring:       node.Ring,

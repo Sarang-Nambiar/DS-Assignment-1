@@ -8,15 +8,12 @@ import (
 	"time"
 )
 
-// BUG: The coordinator is in a stand still after a node starts to send a join request to it
 
 type CoordinatorNode struct {
 	Node *Node
 }
 
 func (cn *CoordinatorNode) RegisterNode(msg *Message, reply *Message) error {
-	cn.Node.Lock.Lock()
-	defer cn.Node.Lock.Unlock()
 
 	// Initiate Ring discover and ring updating
 	go cn.InitiateRingDiscovery(msg)
@@ -31,8 +28,8 @@ func (cn *CoordinatorNode) RegisterNode(msg *Message, reply *Message) error {
 
 func (cn *CoordinatorNode) SynchronizeReplica() {
 	for {
-		fmt.Printf("[COORDINATOR-%d] Replica synchronization has begun, Replica: '%v'\n", cn.Node.CoordinatorId, cn.Node.LocalReplica)
-		
+		fmt.Printf("[COORDINATOR-%d] Replica synchronization has begun, Replica: '%v'. Ring: %v\n", cn.Node.CoordinatorId, cn.Node.LocalReplica, cn.Node.Ring)
+
 		if len(cn.Node.ClientList) == 1 {
 			fmt.Printf("[COORDINATOR-%d] No other nodes to synchronize with.\n", cn.Node.Id)
 			time.Sleep(5 * time.Second)
@@ -72,10 +69,8 @@ func (cn *CoordinatorNode) SynchronizeReplica() {
 
 // Starts from the coordinator node and then works its way around the ring to finish right before the new node, then it would start the new ring update process
 // This function would be different for elections
-// Fix the ACK messages after the ring discovery is complete.
 func (cn *CoordinatorNode) InitiateRingDiscovery(msg *Message) {
 	curId := cn.Node.Id
-	// done := make(chan error, 1)
 
 	// Initialize an empty ring and clientlist
 	newClientList := make(map[int]string)
@@ -83,11 +78,13 @@ func (cn *CoordinatorNode) InitiateRingDiscovery(msg *Message) {
 
 	// Add the new node to the client list and the ring structure
 	// Doing this so that the new node is counted in the discovery phase
+	cn.Node.Lock.Lock()
 	cn.Node.ClientList[msg.NodeId] = msg.ClientList[msg.NodeId]
 	cn.Node.Ring = slices.Insert(cn.Node.Ring, cn.Node.findIndex(cn.Node.Id), msg.NodeId)
 
-	newClientList[cn.Node.Id] = LOCALHOST + "8000"
+	newClientList[cn.Node.Id] = cn.Node.ClientList[cn.Node.CoordinatorId]
 	newRing = append(newRing, cn.Node.Id)
+	cn.Node.Lock.Unlock()
 	
 	// Run until the coordinator finds an alive node.
 	for {
@@ -99,6 +96,7 @@ func (cn *CoordinatorNode) InitiateRingDiscovery(msg *Message) {
 			NodeId:     msg.NodeId, // ID of the new node
 			ClientList: newClientList,
 			Ring:       newRing,
+			CoordinatorId: cn.Node.Id,
 		}
 
 		if successorId == -1 || successorId == cn.Node.Id { // If the successor is not found or is the coordinator, then stop the ring update propagation
@@ -124,17 +122,14 @@ func (cn *CoordinatorNode) InitiateRingDiscovery(msg *Message) {
 }
 
 func (cn *CoordinatorNode) InitiateRingUpdate(msg Message, reply *Message) error {
-	cn.Node.Lock.Lock()
-	defer cn.Node.Lock.Unlock()
-
 	fmt.Printf("[COORDINATOR-%d] Ring update propagation initiated.\n", cn.Node.Id)
 
-	// done := make(chan error, 1)
-
 	// Update the ring structure
+	cn.Node.Lock.Lock()
 	cn.Node.Ring = msg.Ring
 	cn.Node.ClientList = msg.ClientList
 	msg.CoordinatorId = cn.Node.Id
+	cn.Node.Lock.Unlock()
 
 	fmt.Printf("[COORDINATOR-%d] Ring structure updated. New ring from msg: %v\n", cn.Node.Id, msg.Ring)
 
