@@ -20,7 +20,7 @@ Note: The node join feature only works for when the coordinator is of Id 0. If a
 
 ### Sample Output
 
-<!-- Sample output here -->
+![image](https://github.com/user-attachments/assets/2af67bb8-9611-495a-9a5d-97223a7835b2)
 
 ---
 
@@ -32,17 +32,17 @@ The replica synchronization is programmed to occur every 5 seconds. Within this 
 
 ### Sample Output
 
-<!-- Sample output here -->
+![image](https://github.com/user-attachments/assets/db906d48-bc7c-4d41-a2de-b139c53240e6)
 
 ## Election implementation logic
 
 Initially, when the first node joins the network, it is automatically assigned to be the coordinator and subsequent nodes are registered to this coordinator node. The coordinator then starts replica synchronization procedure. However, if the coordinator node fails, a timeout condition is triggered amongst the client nodes and an election process is initiated to elect a new coordinator.
 
-<!-- Insert image of the timeout trigger here -->
+![Screenshot 2024-10-27 184500](https://github.com/user-attachments/assets/2afa1dab-9c23-474f-9308-3cfd57949527)
 
 The election process is implemented based on ring election protocol.There are two phases to the election:
 1. **Discovery Phase:** The client node that triggered the election will start to create a new ring with the client nodes that are still alive. Simutaneously, it will compare the client ID of the nodes in the ring to determine the highest client ID. The client node with the highest client ID will be elected as the new coordinator.
-2. **Announcement Phase:**The newly elected coordinator will then circulate the new coordinator ID and the ring structure to all the client nodes in the network. 
+2. **Announcement Phase:** The newly elected coordinator will then circulate the new coordinator ID and the ring structure to all the client nodes in the network. 
 
 ## 2. How to simulate worst case and best case scenarios for election
 
@@ -52,7 +52,7 @@ To simulate the worst case scenario where all the clients simulate the election 
 
 Expected output: The client nodes should still be able to elect a new coordinator and continue the replica synchronization process. There are fail safes in place to avoid multiple coordinators of the same client ID from being elected as shown below:
 
-<!-- insert picture of the fail safe -->
+![Screenshot 2024-10-27 202236](https://github.com/user-attachments/assets/3b56fd5c-4a79-45d6-8450-f349c78a12c3)
 
 ### (b) Best case scenario:
 
@@ -74,7 +74,7 @@ To simulate the scenario where a node fails during the election process but it i
 
 Expected output: The client nodes will detect the failure of the node and just skip the failed node and move onto its successor and so on. However, during this stage, the client nodes will still be updated with the ring structure containing the dead node and the new coordinator ID. The new structure will only be circulated once the coordinator fails and a new discovery phase is initiated.
 
-<!-- insert picture of the skipping successor -->
+![Screenshot 2024-10-27 201726](https://github.com/user-attachments/assets/31a9fd0a-3d51-43e0-a43c-3d86a4818210)
 
 ## 4. How to simulate arbitrary node silently leaving the network(coordinator or non coordinator)
 
