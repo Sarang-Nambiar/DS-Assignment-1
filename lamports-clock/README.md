@@ -16,7 +16,7 @@ This will begin the execution of the program. The program will continue to run u
 
 A sample output of the execution is shown below:
 
-![Sample Output](image-2.png)
+![Screenshot 2024-10-25 111203](https://github.com/user-attachments/assets/7694b289-a62d-4d77-b9ae-4456446c030a)
 
 ---
 
@@ -26,7 +26,7 @@ The CLI output is divided into two sections: **Node Info** and the **Actual Mess
 
 ### Node Info
 
-![Node Info](image.png)
+![Screenshot 2024-10-25 111050](https://github.com/user-attachments/assets/813fc78a-b22a-48d1-bc13-8516bb4174b8)
 
 The **Node Info** contains three parts separated by a dash(-):
 
@@ -36,7 +36,7 @@ The **Node Info** contains three parts separated by a dash(-):
 
 ### Actual Message
 
-![alt text](image-3.png)
+![Screenshot 2024-10-25 114358](https://github.com/user-attachments/assets/ab081816-1e3d-4871-b62c-9dd319fd7c25)
 
 The **Actual Message** part describes the specific event executed by the client or server.
 
