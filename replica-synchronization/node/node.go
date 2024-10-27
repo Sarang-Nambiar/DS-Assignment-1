@@ -27,6 +27,7 @@ const (
 	LOCALHOST = "127.0.0.1:"
 )
 
+// Function to start a ClientNode
 func StartNode(node *Node) {
 	cn := ClientNode{
 		Node: node, 
@@ -60,6 +61,7 @@ func StartNode(node *Node) {
 }
 
 // Function to start the coordinator node when there are no nodes in the network.
+// Default coordinator is set to node with id 0
 func StartCoordinator(node *Node) {
 	node.Lock.Lock()
 	node.CoordinatorId = node.Id
@@ -91,9 +93,9 @@ func StartCoordinator(node *Node) {
 	}
 }
 
-// Double check if you need to initiate the ring join process when a node joins the network
+// Registering a new ClientNode with the Coordinator
 func RegisterWithCoordinator(node *Node) {
-	client, err := rpc.Dial("tcp", node.ClientList[node.CoordinatorId])
+	client, err := rpc.Dial("tcp", ":8000")
 
 	if err != nil {
 		fmt.Printf("[NODE-%d] Error connecting to coordinator. Please check if there is a running coordinator: %s\n", node.Id, err)
@@ -141,6 +143,7 @@ func (n *Node) findSuccessor(id int) int {
 	return -1 // If the node is not found in the Ring
 }
 
+// Function to find the index of an element in the Ring
 func (n *Node) findIndex(element int) int {
 	for i, v := range n.Ring {
 		if v == element {
@@ -150,6 +153,7 @@ func (n *Node) findIndex(element int) int {
 	return -1
 }
 
+// Function to check if an element is inside a map
 func contains(nodeList map[int]string, i int) bool {
 	if _, ok := nodeList[i]; ok {
 		return true
@@ -157,6 +161,7 @@ func contains(nodeList map[int]string, i int) bool {
 	return false
 }
 
+// Getting a unique id for a newly joined node
 func GetUniqueId(nodeList map[int]string) int {
 	for i := 1; ; i++ {
 		if !contains(nodeList, i) {
@@ -165,6 +170,7 @@ func GetUniqueId(nodeList map[int]string) int {
 	}
 }
 
+// Function to delete an element from a slice
 func deleteElement(slice []int, index int) []int {
 	return append(slice[:index], slice[index+1:]...)
 }

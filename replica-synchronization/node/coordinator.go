@@ -13,6 +13,7 @@ type CoordinatorNode struct {
 	Node *Node
 }
 
+// Function to register a new ClientNode with the CoordinatorNode
 func (cn *CoordinatorNode) RegisterNode(msg *Message, reply *Message) error {
 
 	// Initiate Ring discover and ring updating
@@ -21,11 +22,11 @@ func (cn *CoordinatorNode) RegisterNode(msg *Message, reply *Message) error {
 	*reply = Message{
 		Type:    ACK,
 		NodeId:  cn.Node.Id,
-		Payload: cn.Node.LocalReplica,
 	}
 	return nil
 }
 
+// Function to synchronize the replica with the rest of the nodes in the network
 func (cn *CoordinatorNode) SynchronizeReplica() {
 	for {
 		fmt.Printf("[COORDINATOR-%d] Replica synchronization has begun, Replica: '%v'. Ring: %v\n", cn.Node.CoordinatorId, cn.Node.LocalReplica, cn.Node.Ring)
@@ -67,8 +68,8 @@ func (cn *CoordinatorNode) SynchronizeReplica() {
 	}
 }
 
-// Starts from the coordinator node and then works its way around the ring to finish right before the new node, then it would start the new ring update process
-// This function would be different for elections
+// FOR NEW NODE ADDITION
+// Function to initiate the ring discovery propagation within the client nodes.
 func (cn *CoordinatorNode) InitiateRingDiscovery(msg *Message) {
 	curId := cn.Node.Id
 
@@ -121,6 +122,8 @@ func (cn *CoordinatorNode) InitiateRingDiscovery(msg *Message) {
 	}
 }
 
+// FOR NEW NODE ADDITION
+// Function to initiate the ring update propagation within the client nodes.
 func (cn *CoordinatorNode) InitiateRingUpdate(msg Message, reply *Message) error {
 	fmt.Printf("[COORDINATOR-%d] Ring update propagation initiated.\n", cn.Node.Id)
 
@@ -157,6 +160,7 @@ func (cn *CoordinatorNode) InitiateRingUpdate(msg Message, reply *Message) error
 	return nil
 }
 
+// Function to propagate through the ring
 func (cn *CoordinatorNode) propagateToSuccessor(successorId int, msg Message, rpcCall string) error {
 
 	client, err := rpc.Dial("tcp", LOCALHOST + strconv.Itoa(8000+successorId))
