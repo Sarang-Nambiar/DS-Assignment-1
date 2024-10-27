@@ -1,13 +1,21 @@
 package node
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/rpc"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
+
+type Config struct {
+	nodes map[int]string
+	CoordinatorId int
+}
 
 type Node struct {
 	Id            int
@@ -63,10 +71,7 @@ func StartNode(node *Node) {
 // Function to start the coordinator node when there are no nodes in the network.
 // Default coordinator is set to node with id 0
 func StartCoordinator(node *Node) {
-	node.Lock.Lock()
 	node.CoordinatorId = node.Id
-	node.ClientList[node.Id] = LOCALHOST + "8000" // Changing the address to the coordinator's address
-	node.Lock.Unlock()
 
 	cn := CoordinatorNode{node}
 	rpc.Register(&cn)
@@ -95,7 +100,7 @@ func StartCoordinator(node *Node) {
 
 // Registering a new ClientNode with the Coordinator
 func RegisterWithCoordinator(node *Node) {
-	client, err := rpc.Dial("tcp", ":8000")
+	client, err := rpc.Dial("tcp", node.ClientList[node.CoordinatorId])
 
 	if err != nil {
 		fmt.Printf("[NODE-%d] Error connecting to coordinator. Please check if there is a running coordinator: %s\n", node.Id, err)
@@ -109,6 +114,7 @@ func RegisterWithCoordinator(node *Node) {
 		ClientList: node.ClientList,
 		Ring:       node.Ring,
 	}
+	
 	var reply Message
 	err = client.Call("CoordinatorNode.RegisterNode", request, &reply)
 	if err != nil {
@@ -144,7 +150,7 @@ func (n *Node) findSuccessor(id int) int {
 }
 
 // Function to find the index of an element in the Ring
-func (n *Node) findIndex(element int) int {
+func (n *Node) FindIndex(element int) int {
 	for i, v := range n.Ring {
 		if v == element {
 			return i
@@ -173,4 +179,36 @@ func GetUniqueId(nodeList map[int]string) int {
 // Function to delete an element from a slice
 func deleteElement(slice []int, index int) []int {
 	return append(slice[:index], slice[index+1:]...)
+}
+
+// Function to read the nodes-list.json file and return the node ids along with their addresses
+func ReadNodesList() map[string]interface{} {
+	jsonFile, err := os.Open("nodes-list.json")
+	if err != nil {
+		fmt.Println("Error opening nodes-list.json file:", err)
+	}
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	var nodesList map[string]interface{}
+
+	json.Unmarshal(byteValue, &nodesList) // Puts the byte value into the nodesList map
+
+	if nodes, ok := nodesList["nodes"].(map[string]interface{}); ok {
+		nodesList["nodes"] = ConvertMapStringToInt(nodes)
+	}
+
+	return nodesList
+}
+
+// Converting map[string]string to map[int]string
+func ConvertMapStringToInt(input map[string]interface{}) map[int]string {
+    result := make(map[int]string)
+    for k, v := range input {
+        if id, err := strconv.Atoi(k); err == nil {
+			result[id] = v.(string)
+        }
+    }
+    return result
 }

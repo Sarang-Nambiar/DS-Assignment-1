@@ -16,7 +16,7 @@ When you first run the executable, it will start a terminal with the server runn
 
 It is recommended to run the program in 3-4 separate terminals to see the synchronization of the nodes in the network.
 
-Note: The node join feature only works for when the coordinator is at 
+Note: The node join feature only works for when the coordinator is of Id 0. If any new coordinator has been elected, the node join feature will not work as intended.
 
 ### Sample Output
 

@@ -1,10 +1,13 @@
 package node
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand/v2"
 	"net"
 	"net/rpc"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -41,7 +44,6 @@ func (cn *ClientNode) InvokeElection() {
 	}
 
 	time.Sleep(1 * time.Second) // Wait for the discovery phase to complete
-
 }
 
 // Invoke synchronization of the replica with the coordinator.
@@ -72,7 +74,7 @@ func (cn *ClientNode) DiscoverRing(msg Message, reply *Message) error {
 	// Only to update the ring structure to include the new node.
 	cn.Node.Lock.Lock()
 	if msg.Type == NDISCOVER && cn.Node.Id != msg.NodeId {
-		cn.Node.Ring = slices.Insert(cn.Node.Ring, cn.Node.findIndex(cn.Node.CoordinatorId), msg.NodeId)// Add the new node to the ring structure
+		cn.Node.Ring = slices.Insert(cn.Node.Ring, cn.Node.FindIndex(cn.Node.CoordinatorId), msg.NodeId)// Add the new node to the ring structure
 	} else {
 		if msg.Type == DISCOVER && cn.Node.Id > msg.CoordinatorId {
 			// update coordinator id to the max(curNodeId, msg.CoordinatorId)
@@ -203,6 +205,22 @@ func (cn *ClientNode) BecomeCoordinator(msg Message, reply *Message) error {
 	cn.isCoordinator = true
 	cn.Node.CoordinatorId = cn.Node.Id
 
+	nodesList := ReadNodesList()
+
+	// Update the coordinator id in the nodes-list.json file
+	nodesList["coordinator"] = strconv.Itoa(cn.Node.Id)
+	jsonData, err := json.Marshal(nodesList)
+
+	if err != nil {
+		fmt.Printf("[NODE-%d] Error occurred while marshalling the Ring back into nodes-list.json: %s\n", cn.Node.Id, err)
+	}
+	
+	err = ioutil.WriteFile("nodes-list.json", jsonData, os.ModePerm)
+
+	if err != nil {
+		fmt.Printf("[NODE-%d] Error occurred while writing the Ring back into nodes-list.json: %s\n", cn.Node.Id, err)
+	}
+
 	coordinator := CoordinatorNode{Node: cn.Node}
 
 	RPCServer := rpc.NewServer()
@@ -278,7 +296,7 @@ func (cn *ClientNode) handleElectionRingUpdate(msg Message) error {
     }
     defer client.Close()
 
-	time.Sleep(5 * time.Second) // Uncomment for part 2.3 (a) and part 2.3 (b) to kill a node(coordinator or client) before the new coordinator ID is circulated through the ring.
+	// time.Sleep(5 * time.Second) // Uncomment for part 2.3 (a) and part 2.3 (b) to kill a node(coordinator or client) before the new coordinator ID is circulated through the ring.
     var reply Message
     if err := client.Call("ClientNode.UpdateRing", msg, &reply); err != nil {
         return fmt.Errorf("error updating ring: %v", err)

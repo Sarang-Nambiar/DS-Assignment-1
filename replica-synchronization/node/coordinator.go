@@ -81,7 +81,7 @@ func (cn *CoordinatorNode) InitiateRingDiscovery(msg *Message) {
 	// Doing this so that the new node is counted in the discovery phase
 	cn.Node.Lock.Lock()
 	cn.Node.ClientList[msg.NodeId] = msg.ClientList[msg.NodeId]
-	cn.Node.Ring = slices.Insert(cn.Node.Ring, cn.Node.findIndex(cn.Node.Id), msg.NodeId)
+	cn.Node.Ring = slices.Insert(cn.Node.Ring, cn.Node.FindIndex(cn.Node.Id), msg.NodeId)
 
 	newClientList[cn.Node.Id] = cn.Node.ClientList[cn.Node.CoordinatorId]
 	newRing = append(newRing, cn.Node.Id)

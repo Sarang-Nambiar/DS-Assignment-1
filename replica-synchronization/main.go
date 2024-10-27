@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"replica-synchronization/node"
+	"slices"
 	"strconv"
 	"sync"
 	"syscall"
@@ -20,10 +21,15 @@ func main() {
 		Ring: make([]int, 0),
 	}
 
-	nodesList := readNodesList()
+	nodesList := node.ReadNodesList()
+
+	nodes := make(map[int]string)
+	if nodesList["nodes"] != nil {
+		nodes = nodesList["nodes"].(map[int]string)
+	}
 
 	// If there are no nodes running in the network, assign this node to be the coordinator by default
-	if len(nodesList) == 0 {
+	if len(nodes) == 0 {
 		n.Id = 0
 		n.LocalReplica = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 		n.Ring = append(n.Ring, n.Id)
@@ -32,15 +38,27 @@ func main() {
 		nodesList["coordinator"] = strconv.Itoa(n.Id)
 		go node.StartCoordinator(&n)
 	} else {
-		n.Id = node.GetUniqueId(nodesList["nodes"].(map[int]string)) // asserting the type to map[int]string
-		n.ClientList = nodesList["nodes"].(map[int]string)
-		n.ClientList[n.Id] = node.LOCALHOST + strconv.Itoa(8000+n.Id)
+		n.Id = node.GetUniqueId(nodes) // asserting the type to map[int]string
+		n.ClientList = nodes
 		for id := range n.ClientList {
 			n.Ring = append(n.Ring, id)
 		}
+		n.ClientList[n.Id] = node.LOCALHOST + strconv.Itoa(8000+n.Id)
+
+		// Inserting the new node right before the coordinator in the ring
+		coordinatorId, err := strconv.Atoi(nodesList["coordinator"].(string))
+
+		if err != nil {
+			fmt.Println("Error occurred while converting coordinatorId to int: ", err)
+		}
+
+		coordinatorIndex := n.FindIndex(coordinatorId)
+		n.CoordinatorId = coordinatorId
+		n.Ring = slices.Insert(n.Ring, coordinatorIndex, n.Id) 
 	}
 
-	jsonData, err := json.Marshal(n.ClientList)
+	nodesList["nodes"] = n.ClientList
+	jsonData, err := json.Marshal(nodesList)
 
 	err = ioutil.WriteFile("nodes-list.json", jsonData, os.ModePerm)
 
@@ -61,9 +79,9 @@ func main() {
 		fmt.Println("Shutting down...")
 
 		// Remove the node from the list
-		nodesList = readNodesList()
+		nodesList = node.ReadNodesList()
 
-		delete(nodesList, n.Id)
+		delete(nodesList["nodes"].(map[int]string), n.Id)
 
 		jsonData, err := json.Marshal(nodesList)
 		err = ioutil.WriteFile("nodes-list.json", jsonData, os.ModePerm)
@@ -74,21 +92,4 @@ func main() {
 	}()
 
 	select {} // Blocking the main function from exiting immediately
-}
-
-// Function to read the nodes-list.json file and return the node ids along with their addresses
-func readNodesList() map[string] any {
-	jsonFile, err := os.Open("nodes-list.json")
-	if err != nil {
-		fmt.Println("Error opening nodes-list.json file:", err)
-	}
-	defer jsonFile.Close()
-
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-
-	var nodesList map[string] any
-
-	json.Unmarshal(byteValue, &nodesList) // Puts the byte value into the nodesList map
-
-	return nodesList
 }
