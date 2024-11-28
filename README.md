@@ -1,4 +1,4 @@
-# DS-Assignment-1
+# Time and Replica Synchronization
 
 This directory includes the components of HW-1 as described below:
 
